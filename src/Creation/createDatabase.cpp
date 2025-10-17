@@ -26,8 +26,6 @@ void CreateDatabase::createDatabase(const std::string &databaseName) {
             throw std::runtime_error("Failed to create current database file.");
         file << currentDatabase;
         file.close();
-
-        std::cout << "Database created: " << databaseName << std::endl;
     } else {
         throw std::runtime_error("Database already exists.");
     }
