@@ -10,13 +10,11 @@ using json = nlohmann::json;
 
 static std::string currentDatabase;
 
-void CreateDatabase::createDatabase(const std::string &databaseName)
-{
+void CreateDatabase::createDatabase(const std::string &databaseName) {
     fs::path basePath = fs::current_path() / "Databases" / databaseName;
     fs::path currentDbFile = fs::current_path() / "crrtdb" / "crrtdb.txt";
 
-    if (!fs::exists(basePath))
-    {
+    if (!fs::exists(basePath)) {
         fs::create_directories(basePath);
         currentDatabase = databaseName;
 
@@ -30,9 +28,7 @@ void CreateDatabase::createDatabase(const std::string &databaseName)
         file.close();
 
         std::cout << "Database created: " << databaseName << std::endl;
-    }
-    else
-    {
+    } else {
         throw std::runtime_error("Database already exists.");
     }
 }
@@ -41,8 +37,7 @@ void CreateDatabase::createTable(const std::string &tableName,
                                  const std::vector<std::string> &columns,
                                  const std::vector<std::string> &dataTypes,
                                  const std::vector<bool> &isUnique,
-                                 const std::vector<bool> &notNull)
-{
+                                 const std::vector<bool> &notNull) {
     if (columns.size() != dataTypes.size())
         throw std::runtime_error("Must initialize Data Type for every Column.");
 
@@ -54,13 +49,11 @@ void CreateDatabase::createTable(const std::string &tableName,
 
     json columnInfoJson;
 
-    for (size_t i = 0; i < columns.size(); ++i)
-    {
+    for (size_t i = 0; i < columns.size(); ++i) {
         const std::string &column = columns[i];
         fs::path columnFile = tableDir / (column + ".json");
 
-        if (!fs::exists(columnFile))
-        {
+        if (!fs::exists(columnFile)) {
             std::ofstream cfile(columnFile);
             if (!cfile)
                 throw std::runtime_error("Failed to create column file: " + column);
@@ -72,7 +65,8 @@ void CreateDatabase::createTable(const std::string &tableName,
         json columnData = {
             {"type", dataTypes[i]},
             {"isUnique", isUnique[i]},
-            {"notNull", notNull[i]}};
+            {"notNull", notNull[i]}
+        };
 
         columnInfoJson[column] = columnData;
     }

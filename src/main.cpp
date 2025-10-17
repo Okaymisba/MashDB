@@ -11,8 +11,7 @@ int main() {
         std::vector<bool> notNull = {true, true, false};
 
         CreateDatabase::createTable("Users", columns, dataTypes, isUnique, notNull);
-    }
-    catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
 
