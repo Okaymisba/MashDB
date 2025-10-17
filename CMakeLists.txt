@@ -12,4 +12,5 @@ add_executable(MashDB
         src/Operations/CurrentDB/currentDB.cpp
         src/Operations/ChangeDB/changeDB.cpp
         src/Parser/parser.cpp
+        src/Creation/createTable.cpp
 )
