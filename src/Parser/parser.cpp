@@ -8,6 +8,22 @@
 #include <algorithm>
 #include <sstream>
 
+/**
+ * Parses a given SQL-like query and performs the corresponding action based on the query type.
+ * Supports INSERT INTO, CREATE DATABASE, and CHANGE DATABASE queries. Throws an exception
+ * if the query is invalid or not supported. The method also handles empty queries by throwing
+ * a runtime exception.
+ *
+ * @param query A constant reference to the SQL-like query string to be parsed and executed.
+ *              The query must follow the expected format:
+ *              - For INSERT: INSERT INTO <table_name>(<columns>) VALUES (<values>);
+ *              - For CREATE DATABASE: CREATE DATABASE <database_name>;
+ *              - For CHANGE DATABASE: CHANGE DATABASE <database_name>;
+ *              If the query does not match any of these formats, a runtime_error is thrown.
+ *
+ * @throws std::runtime_error Thrown when the query is invalid, empty, or does not match
+ *                            the expected format.
+ */
 void ParseQuery::parse(const std::string &query) {
     if (query.empty()) {
         throw std::runtime_error("Empty query");

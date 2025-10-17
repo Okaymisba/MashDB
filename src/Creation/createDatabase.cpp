@@ -10,6 +10,19 @@ using json = nlohmann::json;
 
 static std::string currentDatabase;
 
+/**
+ * @brief Creates a new database directory and updates the current database file.
+ *
+ * This function creates a new database directory in the file system at a
+ * predefined path. If the database with the specified name already exists,
+ * an exception is thrown. If not, it creates the necessary directory structure
+ * and updates a separate file storing the name of the current database in use.
+ *
+ * @param databaseName The name of the database to be created.
+ *
+ * @throws std::runtime_error If the database already exists or if there is
+ * a failure in creating directories or files.
+ */
 void CreateDatabase::createDatabase(const std::string &databaseName) {
     fs::path basePath = fs::current_path() / "Databases" / databaseName;
     fs::path currentDbFile = fs::current_path() / "crrtdb" / "crrtdb.txt";
@@ -31,6 +44,13 @@ void CreateDatabase::createDatabase(const std::string &databaseName) {
     }
 }
 
+/**
+ * @brief Creates a new table in the database.
+ *
+ * This function initializes a table with the specified configuration and
+ * adds it to the existing database structure.
+ *
+ */
 void CreateDatabase::createTable(const std::string &tableName,
                                  const std::vector<std::string> &columns,
                                  const std::vector<std::string> &dataTypes,

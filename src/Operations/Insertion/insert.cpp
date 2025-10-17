@@ -7,6 +7,23 @@
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
+/**
+ * Inserts a new record into the specified table within the given database.
+ * Validates the input against the table's metadata and enforces constraints such as unique and non-null values.
+ *
+ * @param databaseName Name of the database containing the target table.
+ * @param tableName Name of the table where data is to be inserted.
+ * @param columns List of column names corresponding to the values being inserted.
+ * @param values List of values to be inserted into the specified columns.
+ * @throws std::runtime_error If the table does not exist in the database.
+ * @throws std::runtime_error If the table information file is missing.
+ * @throws std::runtime_error If the number of columns and values do not match.
+ * @throws std::runtime_error If too many columns are provided.
+ * @throws std::runtime_error If a specified column does not exist in the table.
+ * @throws std::runtime_error If a non-nullable column is assigned a null value.
+ * @throws std::runtime_error If a duplicate value is provided for a unique column.
+ * @throws std::runtime_error If a required column file is missing.
+ */
 void InsertIntoTable::insert(
     const std::string &databaseName,
     const std::string &tableName,
