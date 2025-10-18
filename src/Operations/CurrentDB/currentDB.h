@@ -1,11 +1,10 @@
-#ifndef CURRENTDB_H
-#define CURRENTDB_H
+#pragma once
 
 #include <string>
 
+using namespace std;
+
 class CurrentDB {
 public:
-    static std::string get();
+    static string get();
 };
-
-#endif

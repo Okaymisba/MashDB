@@ -4,7 +4,8 @@
 #include <filesystem>
 #include <algorithm>
 
-namespace fs = std::filesystem;
+using namespace std;
+namespace fs = filesystem;
 
 /**
  * Retrieves the name or content of the current database from a predefined file path.
@@ -16,23 +17,23 @@ namespace fs = std::filesystem;
  *         and carriage return characters are removed from the content.
  * @throws std::runtime_error If the file cannot be opened, or if the file's content is empty.
  */
-std::string CurrentDB::get() {
-    std::string path = fs::current_path().string() + "/crrtdb/crrtdb.txt";
+string CurrentDB::get() {
+    string path = fs::current_path().string() + "/crrtdb/crrtdb.txt";
 
-    std::ifstream file(path);
+    ifstream file(path);
     if (!file.is_open()) {
-        throw std::runtime_error("Cannot open current database file: " + path);
+        throw runtime_error("Cannot open current database file: " + path);
     }
 
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
 
     if (content.empty()) {
-        throw std::runtime_error("No database found");
+        throw runtime_error("No database found");
     }
 
-    content.erase(std::remove(content.begin(), content.end(), '\n'), content.end());
-    content.erase(std::remove(content.begin(), content.end(), '\r'), content.end());
+    content.erase(remove(content.begin(), content.end(), '\n'), content.end());
+    content.erase(remove(content.begin(), content.end(), '\r'), content.end());
 
     return content;
 }
