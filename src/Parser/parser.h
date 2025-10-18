@@ -1,11 +1,10 @@
-#ifndef PARSEQUERY_H
-#define PARSEQUERY_H
+#pragma once
 
 #include <string>
 
+using namespace std;
+
 class ParseQuery {
 public:
-    static void parse(const std::string &query);
+    static void parse(const string &query);
 };
-
-#endif
