@@ -1,11 +1,10 @@
-#ifndef CHANGEDB_H
-#define CHANGEDB_H
+#pragma once
 
 #include <string>
 
+using namespace std;
+
 class ChangeDB {
 public:
-    static void change(const std::string &databaseName);
+    static void change(const string &databaseName);
 };
-
-#endif
