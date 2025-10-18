@@ -4,10 +4,11 @@
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 
-namespace fs = std::filesystem;
+using namespace std;
+namespace fs = filesystem;
 using json = nlohmann::json;
 
-static std::string currentDatabase;
+static string currentDatabase;
 
 /**
  * @brief Creates a new database directory and updates the current database file.
@@ -22,7 +23,7 @@ static std::string currentDatabase;
  * @throws std::runtime_error If the database already exists or if there is
  * a failure in creating directories or files.
  */
-void CreateDatabase::createDatabase(const std::string &databaseName) {
+void CreateDatabase::createDatabase(const string &databaseName) {
     fs::path basePath = fs::current_path() / "Databases" / databaseName;
     fs::path currentDbFile = fs::current_path() / "crrtdb" / "crrtdb.txt";
 
@@ -33,12 +34,12 @@ void CreateDatabase::createDatabase(const std::string &databaseName) {
         if (!fs::exists(currentDbFile.parent_path()))
             fs::create_directories(currentDbFile.parent_path());
 
-        std::ofstream file(currentDbFile);
+        ofstream file(currentDbFile);
         if (!file)
-            throw std::runtime_error("Failed to create current database file.");
+            throw runtime_error("Failed to create current database file.");
         file << currentDatabase;
         file.close();
     } else {
-        throw std::runtime_error("Database already exists.");
+        throw runtime_error("Database already exists.");
     }
 }
