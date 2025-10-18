@@ -63,7 +63,6 @@ void InsertIntoTable::insert(
             throw runtime_error("Column doesn't exist: " + col);
     }
 
-    // Insert logic
     for (const auto &column: columnsOfTable) {
         string colPath = basePath + "/Columns/" + column + ".json";
         if (!fs::exists(colPath))
