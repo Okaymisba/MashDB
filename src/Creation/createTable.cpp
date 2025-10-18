@@ -1,4 +1,4 @@
-#include "createDatabase.h"
+#include "createTable.h"
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -18,11 +18,11 @@ static string currentDatabase;
  * adds it to the existing database structure.
  *
  */
-void CreateDatabase::createTable(const std::string &tableName,
-                                 const std::vector<std::string> &columns,
-                                 const std::vector<std::string> &dataTypes,
-                                 const std::vector<bool> &isUnique,
-                                 const std::vector<bool> &notNull) {
+void CreateTable::createTable(const std::string &tableName,
+                              const std::vector<std::string> &columns,
+                              const std::vector<std::string> &dataTypes,
+                              const std::vector<bool> &isUnique,
+                              const std::vector<bool> &notNull) {
     if (columns.size() != dataTypes.size())
         throw runtime_error("Must initialize Data Type for every Column.");
 
