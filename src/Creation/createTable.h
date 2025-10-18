@@ -2,11 +2,13 @@
 #include <string>
 #include <vector>
 
+using namespace std;
+
 class CreateTable {
 public:
-    static void createTable(const std::string &tableName,
-                            const std::vector<std::string> &columns,
-                            const std::vector<std::string> &dataTypes,
-                            const std::vector<bool> &isUnique,
-                            const std::vector<bool> &notNull);
+    static void createTable(const string &tableName,
+                            const vector<string> &columns,
+                            const vector<string> &dataTypes,
+                            const vector<bool> &isUnique,
+                            const vector<bool> &notNull);
 };

@@ -4,10 +4,11 @@
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 
-namespace fs = std::filesystem;
+using namespace std;
+namespace fs = filesystem;
 using json = nlohmann::json;
 
-static std::string currentDatabase;
+static string currentDatabase;
 
 
 /**
@@ -23,7 +24,7 @@ void CreateDatabase::createTable(const std::string &tableName,
                                  const std::vector<bool> &isUnique,
                                  const std::vector<bool> &notNull) {
     if (columns.size() != dataTypes.size())
-        throw std::runtime_error("Must initialize Data Type for every Column.");
+        throw runtime_error("Must initialize Data Type for every Column.");
 
     fs::path tableDir = fs::current_path() / "Databases" / currentDatabase / tableName / "Columns";
     fs::path tableInfoFile = fs::current_path() / "Databases" / currentDatabase / tableName / "Table-info.json";
@@ -34,13 +35,13 @@ void CreateDatabase::createTable(const std::string &tableName,
     json columnInfoJson;
 
     for (size_t i = 0; i < columns.size(); ++i) {
-        const std::string &column = columns[i];
+        const string &column = columns[i];
         fs::path columnFile = tableDir / (column + ".json");
 
         if (!fs::exists(columnFile)) {
-            std::ofstream cfile(columnFile);
+            ofstream cfile(columnFile);
             if (!cfile)
-                throw std::runtime_error("Failed to create column file: " + column);
+                throw runtime_error("Failed to create column file: " + column);
             json emptyCol = {{column, json::array()}};
             cfile << emptyCol.dump(4);
             cfile.close();
@@ -55,9 +56,9 @@ void CreateDatabase::createTable(const std::string &tableName,
         columnInfoJson[column] = columnData;
     }
 
-    std::ofstream tfile(tableInfoFile);
+    ofstream tfile(tableInfoFile);
     if (!tfile)
-        throw std::runtime_error("Failed to create table info file.");
+        throw runtime_error("Failed to create table info file.");
     tfile << columnInfoJson.dump(4);
     tfile.close();
 }
