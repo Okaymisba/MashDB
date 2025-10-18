@@ -9,3 +9,9 @@ can be created and initialized from scratch.
 
 MashDB can be compiled using either `g++` or **CMake**.  
 See [CompilationGuide.md](./CompilationGuide.md) for detailed build and run instructions.
+
+## License
+
+This project is licensed under the terms of the [MIT License](LICENSE).
+
+© 2025 MashDB Team
