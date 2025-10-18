@@ -136,3 +136,11 @@ cd MashDB
    ```
 
 4. Create a Pull Request on GitHub
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+© 2025 MashDB Team
