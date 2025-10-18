@@ -1,17 +1,16 @@
-#ifndef INSERTINTOTABLE_H
-#define INSERTINTOTABLE_H
+#pragma once
 
 #include <string>
 #include <vector>
 
+using namespace std;
+
 class InsertIntoTable {
 public:
     static void insert(
-        const std::string &databaseName,
-        const std::string &tableName,
-        const std::vector<std::string> &columns,
-        const std::vector<std::string> &values
+        const string &databaseName,
+        const string &tableName,
+        const vector<string> &columns,
+        const vector<string> &values
     );
 };
-
-#endif
