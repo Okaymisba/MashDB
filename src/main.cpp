@@ -21,14 +21,14 @@ int main() {
             continue;
 
         if (query == "exit;" || query == "EXIT;") {
-            cout << "👋 Exiting MashDB console.\n";
+            cout << "Exiting MashDB console.\n";
             break;
         }
 
         try {
             ParseQuery::parse(query);
         } catch (const exception &e) {
-            cerr << "❌ Error: " << e.what() << endl;
+            cerr << "Error: " << e.what() << endl;
         }
     }
 
