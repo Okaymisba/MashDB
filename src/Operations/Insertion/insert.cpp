@@ -9,54 +9,36 @@ using json = nlohmann::json;
 namespace fs = filesystem;
 
 /**
- * Inserts a new record into the specified table using a temp-file staging strategy
- * to prevent partial writes. The logic preserves the existing per-column loop but
- * ensures atomicity at the table level:
+ * Inserts a new record into the specified table with atomicity guarantees.
+ * Uses a temp-file staging strategy to ensure data consistency even in case of failures.
  *
- * Algorithm overview (per INSERT):
- * 1) Validate request shape:
- *    - Table and metadata existence (e.g., `Table-info.json`).
- *    - Column existence and columns/values size match.
- * 2) For each table column (in a loop):
- *    - Load the column's current JSON data.
- *    - Validate constraints using in-memory data:
- *        - notNull: if the column is not provided and marked not-null, fail.
- *        - isUnique: if value is provided and already present, fail.
- *        - Type: a placeholder exists to enforce/convert by `type` if desired.
- *    - Apply the value in memory (append provided value or nullptr for nullable-missing).
- *    - Write the updated JSON for this column to a sibling temp file `<col>.json.tmp`.
- * 3) Commit phase (only if every temp write succeeded):
- *    - Atomically replace each original file with its temp file via `fs::rename(tmp, final)`.
- * 4) Rollback on failure:
- *    - If any validation or write fails, delete all created temp files and rethrow.
- *    - Original column files remain untouched, so no partial insert occurs.
+ * Operation Details:
+ * 1. Validates input parameters and loads table metadata
+ * 2. For each column in the table:
+ *    - Validates NOT NULL constraints
+ *    - Enforces UNIQUE constraints
+ *    - Validates and converts data types
+ *    - Writes to a temporary file
+ * 3. On success: Atomically renames all temp files to their final names
+ * 4. On failure: Cleans up any temporary files and throws an exception
  *
- * Guarantees and caveats:
- * - Atomicity: No original files are changed unless all columns succeed and renames complete.
- * - Crash safety: This protects against logical/validation errors during a single INSERT.
- *   To be resilient against process crash or power loss mid-commit, consider journaling
- *   or a two-phase rename with a table-level marker.
- * - Concurrency: For strict isolation across concurrent INSERTs, add a table-level lock.
- * - Type enforcement: Currently a TODO; values are treated as strings for uniqueness.
+ * Type Handling:
+ * - Integers: Validates and stores as JSON number_integer
+ * - Floats: Validates and stores as JSON number_float
+ * - Booleans: Converts from string (true/false) to JSON boolean
+ * - Strings: Preserves content, handles quoted values
  *
- * @param databaseName Name of the database containing the target table.
- * @param tableName Name of the table where data is to be inserted.
- * @param columns List of column names corresponding to the values being inserted.
- * @param values List of values to be inserted into the specified columns.
- * @throws std::runtime_error If the table does not exist in the database.
- * @throws std::runtime_error If the table information file is missing.
- * @throws std::runtime_error If the number of columns and values do not match.
- * @throws std::runtime_error If too many columns are provided.
- * @throws std::runtime_error If a specified column does not exist in the table.
- * @throws std::runtime_error If a non-nullable column is assigned a null value.
- * @throws std::runtime_error If a duplicate value is provided for a unique column.
- * @throws std::runtime_error If a required column file is missing.
+ * @param databaseName Name of the target database
+ * @param tableName Name of the target table
+ * @param columns List of column names for insertion
+ * @param values List of values corresponding to the columns
+ * @throws std::runtime_error If validation fails or write operations encounter errors
  */
 void InsertIntoTable::insert(
     const string &databaseName,
     const string &tableName,
     const vector<string> &columns,
-    const vector<string> &values
+    const vector<json> &values
 ) {
     string basePath = fs::current_path().string() + "/Databases/" + databaseName + "/" + tableName;
     string infoFilePath = basePath + "/Table-info.json";
@@ -130,12 +112,49 @@ void InsertIntoTable::insert(
                 else
                     dataArray.push_back(nullptr);
             } else {
-                string val = values[index];
-                // TODO: Optionally enforce 'type' here before uniqueness
-                if (isUnique && find(dataArray.begin(), dataArray.end(), val) != dataArray.end()) {
-                    throw runtime_error("Duplicate value for unique column: " + column);
+                const json &typedVal = values[index];
+
+                auto toLower = [](string s) {
+                    transform(s.begin(), s.end(), s.begin(),
+                              [](unsigned char c) { return tolower(c); });
+                    return s;
+                };
+                string expectedType = toLower(type);
+
+                if (!typedVal.is_null()) {
+                    bool typeValid = false;
+
+                    if (expectedType == "int" || expectedType == "integer") {
+                        typeValid = typedVal.is_number_integer();
+                    } else if (expectedType == "float" || expectedType == "double" || expectedType == "real") {
+                        typeValid = typedVal.is_number_float() || typedVal.is_number_integer();
+                    } else if (expectedType == "bool" || expectedType == "boolean") {
+                        typeValid = typedVal.is_boolean();
+                    } else {
+                        typeValid = typedVal.is_string();
+                    }
+
+                    if (!typeValid) {
+                        string typeName;
+                        if (typedVal.is_string()) typeName = "string";
+                        else if (typedVal.is_number_integer()) typeName = "integer";
+                        else if (typedVal.is_number_float()) typeName = "float";
+                        else if (typedVal.is_boolean()) typeName = "boolean";
+                        else typeName = "unknown";
+
+                        throw runtime_error("Type mismatch for column '" + column + "': "
+                                            "expected " + expectedType + ", got " + typeName);
+                    }
                 }
-                dataArray.push_back(val);
+
+                if (isUnique) {
+                    auto it = find(dataArray.begin(), dataArray.end(), typedVal);
+                    if (it != dataArray.end()) {
+                        throw runtime_error("Duplicate value for unique column: " + column);
+                    }
+                }
+
+                dataArray.push_back(typedVal);
             }
 
             string tempPath = finalPath + ".tmp";

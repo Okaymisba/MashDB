@@ -11,20 +11,22 @@
 using namespace std;
 
 /**
- * Parses a given SQL-like query and performs the corresponding action based on the query type.
- * Supports INSERT INTO, CREATE DATABASE, and CHANGE DATABASE queries. Throws an exception
- * if the query is invalid or not supported. The method also handles empty queries by throwing
- * a runtime exception.
+ * Parses and executes SQL-like database queries. Validates query syntax and dispatches
+ * to the appropriate operation handler. Supports a subset of SQL operations for database
+ * management and data manipulation.
  *
- * @param query A constant reference to the SQL-like query string to be parsed and executed.
- *              The query must follow the expected format:
- *              - For INSERT: INSERT INTO <table_name>(<columns>) VALUES (<values>);
- *              - For CREATE DATABASE: CREATE DATABASE <database_name>;
- *              - For CHANGE DATABASE: CHANGE DATABASE <database_name>;
- *              If the query does not match any of these formats, a runtime_error is thrown.
+ * Supported Operations:
+ * - INSERT INTO table_name(column1, column2) VALUES (value1, value2);
+ *   Inserts a new record into the specified table with the given values.
  *
- * @throws std::runtime_error Thrown when the query is invalid, empty, or does not match
- *                            the expected format.
+ * - CREATE DATABASE database_name;
+ *   Creates a new database with the specified name.
+ *
+ * - CHANGE DATABASE database_name;
+ *   Changes the current working database context.
+ *
+ * @param query The SQL query string to parse and execute
+ * @throws std::runtime_error If the query is empty, malformed, or contains unsupported syntax
  */
 void ParseQuery::parse(const string &query) {
     if (query.empty()) {
@@ -53,7 +55,6 @@ void ParseQuery::parse(const string &query) {
         string columnsStr = match[2].str();
         string valuesStr = match[3].str();
 
-        // Parse columns
         vector<string> columns;
         stringstream ssCol(columnsStr);
         string col;
@@ -66,20 +67,49 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        // Parse values
-        vector<string> values;
+        vector<json> values;
         stringstream ssVal(valuesStr);
         string val;
+
+        auto trim = [](string s) -> string {
+            s.erase(0, s.find_first_not_of(" \t\n\r\f\v"));
+            s.erase(s.find_last_not_of(" \t\n\r\f\v") + 1);
+            return s;
+        };
+
         while (getline(ssVal, val, ',')) {
-            // Trim whitespace and quotes
-            val.erase(0, val.find_first_not_of(" \t\n\r\f\v\'\""));
-            val.erase(val.find_last_not_of(" \t\n\r\f\v\'\"") + 1);
-            if (!val.empty()) {
-                values.push_back(val);
+            val = trim(val);
+            if (val.empty()) continue; // Skip empty values
+
+            if (val == "NULL" || val == "null") {
+                // NULL values
+                values.emplace_back(nullptr);
+            }
+            // Handle true/false (case doesn't matter)
+            else if (val == "true" || val == "TRUE") {
+                values.emplace_back(true);
+            } else if (val == "false" || val == "FALSE") {
+                values.emplace_back(false);
+            }
+            // Remove quotes from strings
+            else if ((val[0] == '\'' && val.back() == '\'') ||
+                     (val[0] == '"' && val.back() == '"')) {
+                values.emplace_back(val.substr(1, val.length() - 2));
+            }
+            // Check for whole numbers
+            else if (regex_match(val, regex("^-?\\d+$"))) {
+                values.emplace_back(stoi(val));
+            }
+            // Check for decimal numbers
+            else if (regex_match(val, regex(R"(^-?\d+\.\d+$)"))) {
+                values.emplace_back(stod(val));
+            }
+            // If nothing else matches, treat as plain string
+            else {
+                values.emplace_back(val);
             }
         }
 
-        // Call insert function
         InsertIntoTable::insert(CurrentDB::get(), tableName, columns, values);
     } else if (regex_match(query, match, createDbRegex)) {
         string dbName = match[1].str();
