@@ -114,22 +114,12 @@ namespace Selection {
         }
 
         // Apply filtering and build result
-        size_t count = 0;
         size_t skipped = 0;
+        size_t returned = 0;
 
         for (size_t i = 0; i < rowCount; ++i) {
             size_t rowIdx = rowIndices[i];
-
-            if (skipped < offset) {
-                skipped++;
-                continue;
-            }
-
-            if (limit.has_value() && count >= limit.value()) {
-                break;
-            }
-
-            json row;
+            bool includeRow = true;
 
             // Apply WHERE condition if provided
             if (whereCondition) {
@@ -138,9 +128,27 @@ namespace Selection {
                     rowData[col] = data[rowIdx];
                 }
                 if (!whereCondition(rowData)) {
-                    continue;
+                    includeRow = false;
                 }
             }
+
+            // Skip if row doesn't match WHERE condition
+            if (!includeRow) {
+                continue;
+            }
+
+            // Handle OFFSET (skip first N rows)
+            if (skipped < offset) {
+                skipped++;
+                continue;
+            }
+
+            // Handle LIMIT (return at most N rows)
+            if (limit.has_value() && returned >= limit.value()) {
+                break;
+            }
+
+            json row;
 
             // Add selected columns to result
             for (const auto &col: selectedColumns) {
@@ -148,7 +156,7 @@ namespace Selection {
             }
 
             result.push_back(row);
-            count++;
+            returned++;
         }
 
         return result;

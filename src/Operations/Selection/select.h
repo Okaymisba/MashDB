@@ -33,4 +33,4 @@ namespace Selection {
         optional<size_t> limit = nullopt,
         size_t offset = 0
     );
-} // namespace Selection
+}

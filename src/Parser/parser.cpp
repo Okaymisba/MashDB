@@ -3,6 +3,7 @@
 #include "../Operations/ChangeDB/changeDB.h"
 #include "../Operations/Insertion/insert.h"
 #include "../Operations/Selection/select.h"
+#include "../Operations/Selection/ResultFormatter.hpp"
 #include "../Operations/CurrentDB/currentDB.h"
 
 #include <regex>
@@ -86,7 +87,6 @@ void ParseQuery::parse(const string &query) {
         stringstream ssCol(columnsStr);
         string col;
         while (getline(ssCol, col, ',')) {
-            // Trim whitespace
             col.erase(0, col.find_first_not_of(" \t\n\r\f\v"));
             col.erase(col.find_last_not_of(" \t\n\r\f\v") + 1);
             if (!col.empty()) {
@@ -136,11 +136,7 @@ void ParseQuery::parse(const string &query) {
         }
 
         InsertIntoTable::insert(CurrentDB::getCurrentDB(), tableName, columns, values);
-    } else if (regex_match(query, match, selectBasicRegex) ||
-               regex_match(query, match, selectWhereRegex) ||
-               regex_match(query, match, selectOrderByRegex) ||
-               regex_match(query, match, selectLimitRegex) ||
-               regex_match(query, match, selectFullRegex)) {
+    } else if (regex_match(query, match, selectFullRegex)) {
         string columnsStr = match[1].str();
         string tableName = match[2].str();
 
@@ -150,7 +146,6 @@ void ParseQuery::parse(const string &query) {
             stringstream ss(columnsStr);
             string col;
             while (getline(ss, col, ',')) {
-                // Trim whitespace
                 col.erase(0, col.find_first_not_of(" \t\n\r\f\v"));
                 col.erase(col.find_last_not_of(" \t\n\r\f\v") + 1);
                 if (!col.empty()) {
@@ -191,12 +186,13 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        // Convert WHERE condition string to function (simplified for this example)
+        // TODO: Implement proper WHERE condition parsing and evaluation
+        // Currently, the WHERE clause is ignored and all rows are returned
+        // To implement: Parse the whereConditionStr and create a function that evaluates the condition
         function<bool(const json &)> whereCondition = nullptr;
         if (!whereConditionStr.empty()) {
-            // In a real implementation, you would parse the whereConditionStr
-            // and create a proper function that evaluates the condition
-            // For now, we'll just create a placeholder
+            // This is a placeholder that returns true for all rows
+            // In a real implementation, this would evaluate the actual condition
             whereCondition = [](const json &) { return true; };
         }
 
@@ -212,8 +208,12 @@ void ParseQuery::parse(const string &query) {
             offset
         );
 
-        // Print the result (in a real implementation, you might want to format this better)
-        cout << result.dump(4) << endl;
+        // Format and print the result as a table
+        vector<string> selectedCols;
+        if (columnsStr != "*") {
+            selectedCols = columns;
+        }
+        cout << Selection::ResultFormatter::formatAsTable(result, selectedCols);
     } else if (regex_match(query, match, createDbRegex)) {
         string dbName = match[1].str();
         CreateDatabase::createDatabase(dbName);
