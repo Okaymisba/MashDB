@@ -93,7 +93,7 @@ cd MashDB
    cmake .. -G "MinGW Makefiles"
    
    # Build the project (use -j flag for parallel build)
-   mingw32-make -j$(nproc)
+   mingw32-make
    ```
 
 #### Alternative: Using VSCode CMake Tools
