@@ -14,4 +14,5 @@ add_executable(MashDB
         src/Parser/parser.cpp
         src/Creation/createTable.cpp
         src/Operations/Selection/select.cpp
+        src/Operations/Selection/ResultFormatter.cpp
 )
