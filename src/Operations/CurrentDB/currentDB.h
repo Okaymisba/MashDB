@@ -6,5 +6,5 @@ using namespace std;
 
 class CurrentDB {
 public:
-    static string get();
+    static string getCurrentDB();
 };

@@ -17,7 +17,7 @@ namespace fs = filesystem;
  *         and carriage return characters are removed from the content.
  * @throws std::runtime_error If the file cannot be opened, or if the file's content is empty.
  */
-string CurrentDB::get() {
+string CurrentDB::getCurrentDB() {
     string path = fs::current_path().string() + "/crrtdb/crrtdb.txt";
 
     ifstream file(path);

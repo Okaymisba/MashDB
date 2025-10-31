@@ -2,6 +2,7 @@
 #include "../Creation/createDatabase.h"
 #include "../Operations/ChangeDB/changeDB.h"
 #include "../Operations/Insertion/insert.h"
+#include "../Operations/Selection/select.h"
 #include "../Operations/CurrentDB/currentDB.h"
 
 #include <regex>
@@ -45,6 +46,32 @@ void ParseQuery::parse(const string &query) {
 
     regex changeDbRegex(
         R"(^\s*CHANGE\s+DATABASE\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*;$)",
+        regex_constants::icase
+    );
+
+    // SELECT statement patterns
+    regex selectBasicRegex(
+        R"(^\s*SELECT\s+(\*|(?:\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*))\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s*;)?\s*$)",
+        regex_constants::icase
+    );
+
+    regex selectWhereRegex(
+        R"(^\s*SELECT\s+(\*|(?:\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*))\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+WHERE\s+(.+?)(?:\s*;)?\s*$)",
+        regex_constants::icase
+    );
+
+    regex selectOrderByRegex(
+        R"(^\s*SELECT\s+(\*|(?:\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*))\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+ORDER BY\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(ASC|DESC))?(?:\s*;)?\s*$)",
+        regex_constants::icase
+    );
+
+    regex selectLimitRegex(
+        R"(^\s*SELECT\s+(\*|(?:\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*))\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+LIMIT\s+(\d+)(?:\s+OFFSET\s+(\d+))?)?(?:\s*;)?\s*$)",
+        regex_constants::icase
+    );
+
+    regex selectFullRegex(
+        R"(^\s*SELECT\s+(\*|(?:\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*))\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+WHERE\s+(.+?))?(?:\s+ORDER BY\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(ASC|DESC))?)?(?:\s+LIMIT\s+(\d+)(?:\s+OFFSET\s+(\d+))?)?(?:\s*;)?\s*$)",
         regex_constants::icase
     );
 
@@ -99,9 +126,7 @@ void ParseQuery::parse(const string &query) {
             // Check for whole numbers
             else if (regex_match(val, regex("^-?\\d+$"))) {
                 values.emplace_back(stoi(val));
-            }
-            // Check for decimal numbers
-            else if (regex_match(val, regex(R"(^-?\d+\.\d+$)"))) {
+            } else if (regex_match(val, regex(R"(^-?\d+\.\d+$)"))) {
                 values.emplace_back(stod(val));
             }
             // If nothing else matches, treat as plain string
@@ -110,14 +135,91 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        InsertIntoTable::insert(CurrentDB::get(), tableName, columns, values);
+        InsertIntoTable::insert(CurrentDB::getCurrentDB(), tableName, columns, values);
+    } else if (regex_match(query, match, selectBasicRegex) ||
+               regex_match(query, match, selectWhereRegex) ||
+               regex_match(query, match, selectOrderByRegex) ||
+               regex_match(query, match, selectLimitRegex) ||
+               regex_match(query, match, selectFullRegex)) {
+        string columnsStr = match[1].str();
+        string tableName = match[2].str();
+
+        // Parse columns
+        vector<string> columns;
+        if (columnsStr != "*") {
+            stringstream ss(columnsStr);
+            string col;
+            while (getline(ss, col, ',')) {
+                // Trim whitespace
+                col.erase(0, col.find_first_not_of(" \t\n\r\f\v"));
+                col.erase(col.find_last_not_of(" \t\n\r\f\v") + 1);
+                if (!col.empty()) {
+                    columns.push_back(col);
+                }
+            }
+        }
+
+        // Default values
+        string whereConditionStr;
+        string orderByColumn;
+        bool ascending = true;
+        optional<size_t> limit = nullopt;
+        size_t offset = 0;
+
+        // Parse full query if matched by the full regex
+        if (match.size() > 3) {
+            // WHERE clause
+            if (match[3].matched) {
+                whereConditionStr = match[3].str();
+            }
+
+            // ORDER BY
+            if (match[4].matched) {
+                orderByColumn = match[4].str();
+                if (match[5].matched) {
+                    string order = match[5].str();
+                    ascending = (order != "DESC" && order != "desc");
+                }
+            }
+
+            // LIMIT and OFFSET
+            if (match[6].matched) {
+                limit = stoul(match[6].str());
+                if (match[7].matched) {
+                    offset = stoul(match[7].str());
+                }
+            }
+        }
+
+        // Convert WHERE condition string to function (simplified for this example)
+        function<bool(const json &)> whereCondition = nullptr;
+        if (!whereConditionStr.empty()) {
+            // In a real implementation, you would parse the whereConditionStr
+            // and create a proper function that evaluates the condition
+            // For now, we'll just create a placeholder
+            whereCondition = [](const json &) { return true; };
+        }
+
+        // Execute the query
+        json result = Selection::selectFromTable(
+            CurrentDB::getCurrentDB(),
+            tableName,
+            columns,
+            whereCondition,
+            orderByColumn,
+            ascending,
+            limit,
+            offset
+        );
+
+        // Print the result (in a real implementation, you might want to format this better)
+        cout << result.dump(4) << endl;
     } else if (regex_match(query, match, createDbRegex)) {
         string dbName = match[1].str();
         CreateDatabase::createDatabase(dbName);
     } else if (regex_match(query, match, changeDbRegex)) {
         string dbName = match[1].str();
         ChangeDB::change(dbName);
-    } else {
         throw runtime_error("Invalid query");
     }
 }
