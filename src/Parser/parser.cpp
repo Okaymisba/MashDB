@@ -1,10 +1,11 @@
 #include "parser.h"
-#include "../Creation/createDatabase.h"
+#include "../Operations/Creation/createDatabase.h"
 #include "../Operations/ChangeDB/changeDB.h"
 #include "../Operations/Insertion/insert.h"
 #include "../Operations/Selection/select.h"
 #include "../Operations/Selection/ResultFormatter.hpp"
 #include "../Operations/CurrentDB/currentDB.h"
+#include "../Operations/Creation/createTable.h"
 
 #include <regex>
 #include <iostream>
@@ -73,6 +74,11 @@ void ParseQuery::parse(const string &query) {
 
     regex selectFullRegex(
         R"(^\s*SELECT\s+(\*|(?:\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*))\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+WHERE\s+(.+?))?(?:\s+ORDER BY\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(ASC|DESC))?)?(?:\s+LIMIT\s+(\d+)(?:\s+OFFSET\s+(\d+))?)?(?:\s*;)?\s*$)",
+        regex_constants::icase
+    );
+
+    regex createTableRegex(
+        R"(^\s*CREATE\s+TABLE\s+([a-zA-Z_][a-zA-Z0-9_$]*)\s*\((.+)\)\s*;\s*$)",
         regex_constants::icase
     );
 
@@ -214,6 +220,114 @@ void ParseQuery::parse(const string &query) {
             selectedCols = columns;
         }
         cout << Selection::ResultFormatter::formatAsTable(result, selectedCols);
+    } else if (regex_match(query, match, createTableRegex)) {
+        string tableName = match[1].str();
+        string defsStr = match[2].str();
+
+        // Split column definitions by comma
+        vector<string> rawDefs;
+        string part;
+        stringstream ssDefs(defsStr);
+        while (getline(ssDefs, part, ',')) {
+            // trim
+            part.erase(0, part.find_first_not_of(" \t\n\r\f\v"));
+            part.erase(part.find_last_not_of(" \t\n\r\f\v") + 1);
+            if (!part.empty()) rawDefs.push_back(part);
+        }
+
+        vector<string> columns;
+        vector<string> dataTypes;
+        vector<bool> isUnique;
+        vector<bool> notNull;
+
+        for (auto &def: rawDefs) {
+            // Tokenize by spaces to find name, type and constraints
+            stringstream ts(def);
+            string name;
+            if (!(ts >> name)) continue;
+
+            // Read the remainder of the definition line
+            string rest;
+            getline(ts, rest);
+            // trim
+            rest.erase(0, rest.find_first_not_of(" \t\n\r\f\v"));
+            rest.erase(rest.find_last_not_of(" \t\n\r\f\v") + 1);
+
+            // Determine constraints
+            bool uniqueFlag = false;
+            bool notNullFlag = false;
+
+            // For robust parsing, search case-insensitively
+            string restLower = rest;
+            for (auto &ch: restLower) ch = static_cast<char>(tolower(ch));
+
+            if (restLower.find("unique") != string::npos) uniqueFlag = true;
+            if (restLower.find("not null") != string::npos) {
+                notNullFlag = true;
+            } else if (restLower.find(" null") != string::npos) {
+                // Explicit NULL resets not-null
+                notNullFlag = false;
+            }
+
+            string typePart = rest;
+            // Normalize spaces for easier removal
+            // Remove 'UNIQUE' and 'NOT NULL' (any casing)
+            {
+                string tmp = typePart;
+                // To remove case-insensitively, iterate through possibilities
+                // First remove NOT NULL then UNIQUE
+                // Simple approach: build lowercase copies for search, but erase from original indexes is complex.
+                // Instead, replace occurrences by scanning tokens.
+                string out;
+                string token;
+                stringstream rts(typePart);
+                while (rts >> token) {
+                    string tl = token;
+                    for (auto &c: tl) c = static_cast<char>(tolower(c));
+                    if (tl == "unique") {
+                        continue; // drop
+                    }
+                    if (tl == "not") {
+                        // peek next
+                        streampos p = rts.tellg();
+                        string nxt;
+                        if (rts >> nxt) {
+                            string nl = nxt;
+                            for (auto &c: nl) c = static_cast<char>(tolower(c));
+                            if (nl == "null") {
+                                // drop both
+                                continue;
+                            } else {
+                                // restore position if not 'NULL'
+                                rts.seekg(p);
+                            }
+                        }
+                        // keep 'not' if not followed by NULL
+                        if (!out.empty()) out.push_back(' ');
+                        out += token;
+                    } else {
+                        if (!out.empty()) out.push_back(' ');
+                        out += token;
+                    }
+                }
+                typePart = out;
+            }
+
+            // trim typePart
+            typePart.erase(0, typePart.find_first_not_of(" \t\n\r\f\v"));
+            typePart.erase(typePart.find_last_not_of(" \t\n\r\f\v") + 1);
+            if (typePart.empty()) {
+                // Fallback: if no explicit type remains, mark as TEXT
+                typePart = "TEXT";
+            }
+
+            columns.push_back(name);
+            dataTypes.push_back(typePart);
+            isUnique.push_back(uniqueFlag);
+            notNull.push_back(notNullFlag);
+        }
+
+        CreateTable::createTable(tableName, columns, dataTypes, isUnique, notNull);
     } else if (regex_match(query, match, createDbRegex)) {
         string dbName = match[1].str();
         CreateDatabase::createDatabase(dbName);
