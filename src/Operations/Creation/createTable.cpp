@@ -1,14 +1,17 @@
 #include "createTable.h"
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
+
+#include "../CurrentDB/currentDB.h"
 
 using namespace std;
 namespace fs = filesystem;
 using json = nlohmann::json;
 
-static string currentDatabase;
+static string currentDatabase = CurrentDB::getCurrentDB();
 
 
 /**
