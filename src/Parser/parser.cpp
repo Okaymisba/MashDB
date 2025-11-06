@@ -6,6 +6,7 @@
 #include "../Operations/Selection/ResultFormatter.hpp"
 #include "../Operations/CurrentDB/currentDB.h"
 #include "../Operations/Creation/createTable.h"
+#include "../Operations/Deletion/deleteRow.h"
 
 #include <regex>
 #include <iostream>
@@ -79,6 +80,12 @@ void ParseQuery::parse(const string &query) {
 
     regex createTableRegex(
         R"(^\s*CREATE\s+TABLE\s+([a-zA-Z_][a-zA-Z0-9_$]*)\s*\((.+)\)\s*;\s*$)",
+        regex_constants::icase
+    );
+
+    // DELETE FROM table_name WHERE condition;
+    regex deleteRegex(
+        R"(^\s*DELETE\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_$]*)(?:\s+WHERE\s+(.+?))?\s*;\s*$)",
         regex_constants::icase
     );
 
@@ -220,6 +227,15 @@ void ParseQuery::parse(const string &query) {
             selectedCols = columns;
         }
         cout << Selection::ResultFormatter::formatAsTable(result, selectedCols);
+    } else if (regex_match(query, match, deleteRegex)) {
+        string tableName = match[1].str();
+        string condition = match[2].matched ? match[2].str() : "";
+
+        if (condition.empty()) {
+            throw runtime_error("DELETE without WHERE clause is not supported for safety");
+        }
+
+        DeleteRow::deleteRow(tableName, condition);
     } else if (regex_match(query, match, createTableRegex)) {
         string tableName = match[1].str();
         string defsStr = match[2].str();
@@ -230,7 +246,6 @@ void ParseQuery::parse(const string &query) {
         stringstream ssDefs(defsStr);
         while (getline(ssDefs, part, ',')) {
             // trim
-            part.erase(0, part.find_first_not_of(" \t\n\r\f\v"));
             part.erase(part.find_last_not_of(" \t\n\r\f\v") + 1);
             if (!part.empty()) rawDefs.push_back(part);
         }
