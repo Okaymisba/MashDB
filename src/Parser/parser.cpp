@@ -21,23 +21,20 @@
 using namespace std;
 namespace fs = filesystem;
 
+
 /**
- * Parses and executes SQL-like database queries. Validates query syntax and dispatches
- * to the appropriate operation handler. Supports a subset of SQL operations for database
- * management and data manipulation.
+ * Parse a SQL query and execute the corresponding the appropriate operation.
  *
- * Supported Operations:
- * - INSERT INTO table_name(column1, column2) VALUES (value1, value2);
- *   Inserts a new record into the specified table with the given values.
+ * The following operations are supported:
+ *   - INSERT INTO table_name (column1, column2, ...) VALUES (value1, value2, ...)
+ *   - SELECT columns FROM table_name WHERE condition
+ *   - DELETE FROM table_name WHERE condition
+ *   - CREATE TABLE table_name (column1 type, column2 type, ...)
+ *   - CREATE DATABASE database_name
+ *   - CHANGE DATABASE database_name
+ *   - UPDATE table_name SET column1=value1, column2=value2, ... WHERE condition
  *
- * - CREATE DATABASE database_name;
- *   Creates a new database with the specified name.
- *
- * - CHANGE DATABASE database_name;
- *   Changes the current working database context.
- *
- * @param query The SQL query string to parse and execute
- * @throws std::runtime_error If the query is empty, malformed, or contains unsupported syntax
+ * @param query The SQL query to parse and execute.
  */
 void ParseQuery::parse(const string &query) {
     if (query.empty()) {
@@ -90,13 +87,11 @@ void ParseQuery::parse(const string &query) {
         regex_constants::icase
     );
 
-    // DELETE FROM table_name WHERE condition;
     regex deleteRegex(
         R"(^\s*DELETE\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_$]*)(?:\s+WHERE\s+(.+?))?\s*;\s*$)",
         regex_constants::icase
     );
 
-    // UPDATE table_name SET column1=value1, column2=value2 WHERE condition;
     regex updateRegex(
         R"(^\s*UPDATE\s+([a-zA-Z_][a-zA-Z0-9_$]*)\s+SET\s+([^;]+?)(?:\s+WHERE\s+(.+?))?\s*;\s*$)",
         regex_constants::icase
@@ -135,28 +130,19 @@ void ParseQuery::parse(const string &query) {
             if (val.empty()) continue; // Skip empty values
 
             if (val == "NULL" || val == "null") {
-                // NULL values
                 values.emplace_back(nullptr);
-            }
-            // Handle true/false (case doesn't matter)
-            else if (val == "true" || val == "TRUE") {
+            } else if (val == "true" || val == "TRUE") {
                 values.emplace_back(true);
             } else if (val == "false" || val == "FALSE") {
                 values.emplace_back(false);
-            }
-            // Remove quotes from strings
-            else if ((val[0] == '\'' && val.back() == '\'') ||
-                     (val[0] == '"' && val.back() == '"')) {
+            } else if ((val[0] == '\'' && val.back() == '\'') ||
+                       (val[0] == '"' && val.back() == '"')) {
                 values.emplace_back(val.substr(1, val.length() - 2));
-            }
-            // Check for whole numbers
-            else if (regex_match(val, regex("^-?\\d+$"))) {
+            } else if (regex_match(val, regex("^-?\\d+$"))) {
                 values.emplace_back(stoi(val));
             } else if (regex_match(val, regex(R"(^-?\d+\.\d+$)"))) {
                 values.emplace_back(stod(val));
-            }
-            // If nothing else matches, treat as plain string
-            else {
+            } else {
                 values.emplace_back(val);
             }
         }
@@ -166,7 +152,6 @@ void ParseQuery::parse(const string &query) {
         string columnsStr = match[1].str();
         string tableName = match[2].str();
 
-        // Parse columns
         vector<string> columns;
         if (columnsStr != "*") {
             stringstream ss(columnsStr);
@@ -180,21 +165,16 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        // Default values
         string whereConditionStr;
         string orderByColumn;
         bool ascending = true;
         optional<size_t> limit = nullopt;
         size_t offset = 0;
 
-        // Parse full query if matched by the full regex
         if (match.size() > 3) {
-            // WHERE clause
             if (match[3].matched) {
                 whereConditionStr = match[3].str();
             }
-
-            // ORDER BY
             if (match[4].matched) {
                 orderByColumn = match[4].str();
                 if (match[5].matched) {
@@ -202,8 +182,6 @@ void ParseQuery::parse(const string &query) {
                     ascending = (order != "DESC" && order != "desc");
                 }
             }
-
-            // LIMIT and OFFSET
             if (match[6].matched) {
                 limit = stoul(match[6].str());
                 if (match[7].matched) {
@@ -212,14 +190,11 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        // Parse WHERE condition if provided
         function<bool(const json &)> whereCondition = nullptr;
         if (!whereConditionStr.empty()) {
             try {
-                // Parse the condition string
                 Condition condition = ConditionParser::parseCondition(whereConditionStr);
 
-                // Get the table info to validate the column exists
                 string basePath = fs::current_path().string() + "/Databases/" + CurrentDB::getCurrentDB() + "/" +
                                   tableName;
                 fs::path tableInfoFile = basePath + "/Table-info.json";
@@ -235,11 +210,10 @@ void ParseQuery::parse(const string &query) {
                     tfile >> tableInfo;
                 }
 
-                // Check if the condition column exists in the table
                 bool columnExists = false;
                 for (auto it = tableInfo.begin(); it != tableInfo.end(); ++it) {
                     if (strcasecmp(it.key().c_str(), condition.column.c_str()) == 0) {
-                        condition.column = it.key(); // Use the exact column name from the table
+                        condition.column = it.key();
                         columnExists = true;
                         break;
                     }
@@ -249,14 +223,12 @@ void ParseQuery::parse(const string &query) {
                     throw runtime_error("Column not found in table: " + condition.column);
                 }
 
-                // Create a lambda that evaluates the condition for a given row
                 whereCondition = [condition](const json &row) -> bool {
                     try {
                         if (!row.contains(condition.column)) {
                             throw runtime_error("Column '" + condition.column + "' not found in row");
                         }
 
-                        // Evaluate the condition directly using the JSON value
                         return ConditionParser::evaluateCondition(row[condition.column], condition);
                     } catch (const exception &e) {
                         cerr << "Error evaluating condition: " << e.what() << endl;
@@ -268,7 +240,6 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        // Execute the query
         json result = Selection::selectFromTable(
             CurrentDB::getCurrentDB(),
             tableName,
@@ -280,7 +251,6 @@ void ParseQuery::parse(const string &query) {
             offset
         );
 
-        // Format and print the result as a table
         vector<string> selectedCols;
         if (columnsStr != "*") {
             selectedCols = columns;
@@ -318,12 +288,10 @@ void ParseQuery::parse(const string &query) {
         string tableName = match[1].str();
         string defsStr = match[2].str();
 
-        // Split column definitions by comma
         vector<string> rawDefs;
         string part;
         stringstream ssDefs(defsStr);
         while (getline(ssDefs, part, ',')) {
-            // trim
             part.erase(part.find_last_not_of(" \t\n\r\f\v") + 1);
             if (!part.empty()) rawDefs.push_back(part);
         }
@@ -334,37 +302,25 @@ void ParseQuery::parse(const string &query) {
         vector<bool> notNull;
 
         for (auto &def: rawDefs) {
-            // Tokenize by spaces to find name, type and constraints
             stringstream ts(def);
             string name;
             if (!(ts >> name)) continue;
-
-            // Read the remainder of the definition line
             string rest;
             getline(ts, rest);
-            // trim
             rest.erase(0, rest.find_first_not_of(" \t\n\r\f\v"));
             rest.erase(rest.find_last_not_of(" \t\n\r\f\v") + 1);
 
-            // Determine constraints
             bool uniqueFlag = false;
             bool notNullFlag = false;
 
-            // For robust parsing, search case-insensitively
             string restLower = rest;
             for (auto &ch: restLower) ch = static_cast<char>(tolower(ch));
 
             if (restLower.find("unique") != string::npos) uniqueFlag = true;
-            if (restLower.find("not null") != string::npos) {
-                notNullFlag = true;
-            } else if (restLower.find(" null") != string::npos) {
-                // Explicit NULL resets not-null
-                notNullFlag = false;
-            }
+            if (restLower.find("not null") != string::npos) notNullFlag = true;
+            else if (restLower.find(" null") != string::npos) notNullFlag = false;
 
             string typePart = rest;
-            // Normalize spaces for easier removal
-            // Remove 'UNIQUE' and 'NOT NULL' (any casing)
             {
                 string tmp = typePart;
                 // To remove case-insensitively, iterate through possibilities
@@ -378,24 +334,20 @@ void ParseQuery::parse(const string &query) {
                     string tl = token;
                     for (auto &c: tl) c = static_cast<char>(tolower(c));
                     if (tl == "unique") {
-                        continue; // drop
+                        continue;
                     }
                     if (tl == "not") {
-                        // peek next
                         streampos p = rts.tellg();
                         string nxt;
                         if (rts >> nxt) {
                             string nl = nxt;
                             for (auto &c: nl) c = static_cast<char>(tolower(c));
                             if (nl == "null") {
-                                // drop both
                                 continue;
                             } else {
-                                // restore position if not 'NULL'
                                 rts.seekg(p);
                             }
                         }
-                        // keep 'not' if not followed by NULL
                         if (!out.empty()) out.push_back(' ');
                         out += token;
                     } else {
@@ -406,11 +358,9 @@ void ParseQuery::parse(const string &query) {
                 typePart = out;
             }
 
-            // trim typePart
             typePart.erase(0, typePart.find_first_not_of(" \t\n\r\f\v"));
             typePart.erase(typePart.find_last_not_of(" \t\n\r\f\v") + 1);
             if (typePart.empty()) {
-                // Fallback: if no explicit type remains, mark as TEXT
                 typePart = "TEXT";
             }
 
@@ -429,13 +379,11 @@ void ParseQuery::parse(const string &query) {
         string setClause = match[2].str();
         string whereClause = match[3].matched ? match[3].str() : "";
 
-        // Parse SET clause
         unordered_map<string, json> updates;
         stringstream ssSet(setClause);
         string setItem;
 
         while (getline(ssSet, setItem, ',')) {
-            // Trim whitespace
             setItem.erase(0, setItem.find_first_not_of(" \t\n\r\f\v"));
             setItem.erase(setItem.find_last_not_of(" \t\n\r\f\v") + 1);
 
@@ -452,7 +400,6 @@ void ParseQuery::parse(const string &query) {
             valueStr.erase(0, valueStr.find_first_not_of(" \t\n\r\f\v"));
             valueStr.erase(valueStr.find_last_not_of(" \t\n\r\f\v") + 1);
 
-            // Parse the value
             json value;
             if (valueStr == "NULL" || valueStr == "null") {
                 value = nullptr;
@@ -460,45 +407,35 @@ void ParseQuery::parse(const string &query) {
                 value = true;
             } else if (valueStr == "false" || valueStr == "FALSE") {
                 value = false;
-            }
-            // Handle quoted strings
-            else if ((valueStr[0] == '\'' && valueStr.back() == '\'') ||
-                     (valueStr[0] == '"' && valueStr.back() == '"')) {
+            } else if ((valueStr[0] == '\'' && valueStr.back() == '\'') ||
+                       (valueStr[0] == '"' && valueStr.back() == '"')) {
                 value = valueStr.substr(1, valueStr.length() - 2);
-            }
-            // Handle numbers
-            else if (regex_match(valueStr, regex("^-?\\d+$"))) {
+            } else if (regex_match(valueStr, regex("^-?\\d+$"))) {
                 value = stoi(valueStr);
             } else if (regex_match(valueStr, regex(R"(^-?\d+\.\d+$)"))) {
                 value = stod(valueStr);
             } else {
-                // Default to string if no other type matches
                 value = valueStr;
             }
 
             updates[column] = value;
         }
 
-        // Normalize the WHERE clause if it exists
         string normalizedWhere = whereClause;
         if (!whereClause.empty()) {
-            // Replace == with = for consistency
             size_t pos = 0;
             while ((pos = normalizedWhere.find("==", pos)) != string::npos) {
                 normalizedWhere.replace(pos, 2, "=");
                 pos += 1;
             }
 
-            // Normalize spaces around operators
             regex ws_re("\\s*([=!<>]+)\\s*");
             normalizedWhere = regex_replace(normalizedWhere, ws_re, " $1 ");
 
-            // Trim the result
             normalizedWhere.erase(0, normalizedWhere.find_first_not_of(" \t\n\r\f\v"));
             normalizedWhere.erase(normalizedWhere.find_last_not_of(" \t\n\r\f\v") + 1);
         }
 
-        // Call the update function
         int updated = UpdateOperation::updateTable(
             tableName,
             updates,
