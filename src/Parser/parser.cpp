@@ -453,9 +453,7 @@ void ParseQuery::parse(const string &query) {
             normalizedWhere
         );
 
-        if (updated >= 0) {
-            cout << "Updated " << updated << " row" << (updated != 1 ? "s" : "") << " in table " << tableName << endl;
-        } else {
+        if (updated < 0) {
             throw runtime_error("Failed to update rows in table " + tableName);
         }
     } else if (regex_match(query, match, changeDbRegex)) {
