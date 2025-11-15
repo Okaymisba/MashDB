@@ -60,57 +60,47 @@ namespace Selection {
         string basePath = fs::current_path().string() + "/Databases/" + databaseName + "/" + tableName;
         string infoFilePath = basePath + "/Table-info.json";
 
-        // This is validating if the table exists
         if (!fs::exists(basePath) || !fs::exists(infoFilePath)) {
             throw runtime_error("Table doesn't exist");
         }
 
-        // Get all columns if none specified
         auto allColumns = getTableColumns(infoFilePath);
         vector<string> selectedColumns = columns.empty() ? allColumns : columns;
 
-        // This part is validating if the requested column exists or not
         for (const auto &col: selectedColumns) {
             if (find(allColumns.begin(), allColumns.end(), col) == allColumns.end()) {
                 throw runtime_error("Column doesn't exist: " + col);
             }
         }
 
-        // First load all columns for WHERE condition evaluation
         map<string, json> allColumnData;
         for (const auto &col: allColumns) {
             string colPath = basePath + "/Columns/" + col + ".json";
             allColumnData[col] = loadColumn(colPath)[col];
         }
 
-        // Then create a separate map with only the selected columns for the result
         map<string, json> columnData;
         for (const auto &col: selectedColumns) {
             columnData[col] = allColumnData[col];
         }
 
-        // If ordering is requested, ensure the order column is in allColumnData
         if (!orderByColumn.empty() && allColumnData.find(orderByColumn) == allColumnData.end()) {
             string orderColPath = basePath + "/Columns/" + orderByColumn + ".json";
             allColumnData[orderByColumn] = loadColumn(orderColPath)[orderByColumn];
         }
 
-        // Determine the number of rows
         size_t rowCount = 0;
         if (!columnData.empty()) {
             rowCount = columnData.begin()->second.size();
         }
 
-        // This creates a result set
         json result = json::array();
         vector<size_t> rowIndices(rowCount);
 
-        // Initialize row indices
         for (size_t i = 0; i < rowCount; ++i) {
             rowIndices[i] = i;
         }
 
-        // Apply ordering if requested
         if (!orderByColumn.empty()) {
             auto &orderColumn = columnData[orderByColumn];
             sort(rowIndices.begin(), rowIndices.end(),
@@ -119,7 +109,6 @@ namespace Selection {
                  });
         }
 
-        // Apply filtering and build result
         size_t skipped = 0;
         size_t returned = 0;
 
@@ -127,39 +116,32 @@ namespace Selection {
             size_t rowIdx = rowIndices[i];
             bool includeRow = true;
 
-            // Apply WHERE condition if provided
             if (whereCondition) {
-                // Create a complete row with all columns for condition evaluation
                 json completeRow;
                 for (const auto &[col, data]: allColumnData) {
                     completeRow[col] = data[rowIdx];
                 }
 
-                // Evaluate the condition using the complete row
                 if (!whereCondition(completeRow)) {
                     includeRow = false;
                 }
             }
 
-            // Skip if row doesn't match WHERE condition
             if (!includeRow) {
                 continue;
             }
 
-            // Handle OFFSET (skip first N rows)
             if (skipped < offset) {
                 skipped++;
                 continue;
             }
 
-            // Handle LIMIT (return at most N rows)
             if (limit.has_value() && returned >= limit.value()) {
                 break;
             }
 
             json row;
 
-            // Add selected columns to result
             for (const auto &col: selectedColumns) {
                 row[col] = columnData[col][rowIdx];
             }
