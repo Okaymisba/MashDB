@@ -235,7 +235,26 @@ void ParseQuery::parse(const string &query) {
             throw runtime_error("DELETE without WHERE clause is not supported for safety");
         }
 
-        DeleteRow::deleteRow(tableName, condition);
+        string normalizedCondition = condition;
+
+        size_t pos = 0;
+        while ((pos = normalizedCondition.find("==", pos)) != string::npos) {
+            normalizedCondition.replace(pos, 2, "=");
+            pos += 1;
+        }
+
+        regex ws_re("\\s*([=!<>]+)\\s*");
+        normalizedCondition = regex_replace(normalizedCondition, ws_re, " $1 ");
+
+        auto trim = [](string s) -> string {
+            s.erase(0, s.find_first_not_of(" \t\n\r\f\v"));
+            s.erase(s.find_last_not_of(" \t\n\r\f\v") + 1);
+            return s;
+        };
+
+        string formattedCondition = trim(normalizedCondition);
+
+        DeleteRow::deleteRow(tableName, formattedCondition);
     } else if (regex_match(query, match, createTableRegex)) {
         string tableName = match[1].str();
         string defsStr = match[2].str();
