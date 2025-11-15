@@ -3,7 +3,6 @@
 
 #include <string>
 #include <nlohmann/json.hpp>
-#include <optional>
 
 using json = nlohmann::json;
 
@@ -34,7 +33,6 @@ public:
     static bool evaluateCondition(const json &value, const Condition &condition);
 
 private:
-    // Helper functions for different comparison operators
     static bool compareEqual(const std::string &fieldValue, const std::string &conditionValue);
 
     static bool compareNotEqual(const std::string &fieldValue, const std::string &conditionValue);
@@ -49,14 +47,11 @@ private:
 
     static bool compareLike(const std::string &fieldValue, const std::string &pattern);
 
-    // Helper to trim whitespace
     static std::string trim(const std::string &str);
 
-    // Helper to convert string to lowercase
     static std::string toLower(const std::string &str);
 
-    // For backward compatibility
     static bool evaluate(const std::string &condition, const json &value);
 };
 
-#endif // MASHDB_CONDITION_PARSER_H
+#endif
