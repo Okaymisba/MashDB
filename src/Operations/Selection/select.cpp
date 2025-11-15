@@ -76,17 +76,23 @@ namespace Selection {
             }
         }
 
-        // This is loading all the required columns in columnData
-        map<string, json> columnData;
-        for (const auto &col: selectedColumns) {
+        // First load all columns for WHERE condition evaluation
+        map<string, json> allColumnData;
+        for (const auto &col: allColumns) {
             string colPath = basePath + "/Columns/" + col + ".json";
-            columnData[col] = loadColumn(colPath)[col];
+            allColumnData[col] = loadColumn(colPath)[col];
         }
 
-        // If ordering is requested then load the order column if not already loaded
-        if (!orderByColumn.empty() && columnData.find(orderByColumn) == columnData.end()) {
+        // Then create a separate map with only the selected columns for the result
+        map<string, json> columnData;
+        for (const auto &col: selectedColumns) {
+            columnData[col] = allColumnData[col];
+        }
+
+        // If ordering is requested, ensure the order column is in allColumnData
+        if (!orderByColumn.empty() && allColumnData.find(orderByColumn) == allColumnData.end()) {
             string orderColPath = basePath + "/Columns/" + orderByColumn + ".json";
-            columnData[orderByColumn] = loadColumn(orderColPath)[orderByColumn];
+            allColumnData[orderByColumn] = loadColumn(orderColPath)[orderByColumn];
         }
 
         // Determine the number of rows
@@ -123,11 +129,14 @@ namespace Selection {
 
             // Apply WHERE condition if provided
             if (whereCondition) {
-                json rowData;
-                for (const auto &[col, data]: columnData) {
-                    rowData[col] = data[rowIdx];
+                // Create a complete row with all columns for condition evaluation
+                json completeRow;
+                for (const auto &[col, data]: allColumnData) {
+                    completeRow[col] = data[rowIdx];
                 }
-                if (!whereCondition(rowData)) {
+
+                // Evaluate the condition using the complete row
+                if (!whereCondition(completeRow)) {
                     includeRow = false;
                 }
             }

@@ -1,4 +1,7 @@
 #include "parser.h"
+
+#include <fstream>
+
 #include "../Operations/Creation/createDatabase.h"
 #include "../Operations/ChangeDB/changeDB.h"
 #include "../Operations/Insertion/insert.h"
@@ -13,7 +16,10 @@
 #include <iostream>
 #include <sstream>
 
+#include "conditionParser.h"
+
 using namespace std;
+namespace fs = filesystem;
 
 /**
  * Parses and executes SQL-like database queries. Validates query syntax and dispatches
@@ -206,14 +212,60 @@ void ParseQuery::parse(const string &query) {
             }
         }
 
-        // TODO: Implement proper WHERE condition parsing and evaluation
-        // Currently, the WHERE clause is ignored and all rows are returned
-        // To implement: Parse the whereConditionStr and create a function that evaluates the condition
+        // Parse WHERE condition if provided
         function<bool(const json &)> whereCondition = nullptr;
         if (!whereConditionStr.empty()) {
-            // This is a placeholder that returns true for all rows
-            // In a real implementation, this would evaluate the actual condition
-            whereCondition = [](const json &) { return true; };
+            try {
+                // Parse the condition string
+                Condition condition = ConditionParser::parseCondition(whereConditionStr);
+
+                // Get the table info to validate the column exists
+                string basePath = fs::current_path().string() + "/Databases/" + CurrentDB::getCurrentDB() + "/" +
+                                  tableName;
+                fs::path tableInfoFile = basePath + "/Table-info.json";
+
+                if (!fs::exists(tableInfoFile)) {
+                    throw runtime_error("Table info not found");
+                }
+
+                json tableInfo;
+                {
+                    ifstream tfile(tableInfoFile);
+                    if (!tfile) throw runtime_error("Failed to open table info file");
+                    tfile >> tableInfo;
+                }
+
+                // Check if the condition column exists in the table
+                bool columnExists = false;
+                for (auto it = tableInfo.begin(); it != tableInfo.end(); ++it) {
+                    if (strcasecmp(it.key().c_str(), condition.column.c_str()) == 0) {
+                        condition.column = it.key(); // Use the exact column name from the table
+                        columnExists = true;
+                        break;
+                    }
+                }
+
+                if (!columnExists) {
+                    throw runtime_error("Column not found in table: " + condition.column);
+                }
+
+                // Create a lambda that evaluates the condition for a given row
+                whereCondition = [condition](const json &row) -> bool {
+                    try {
+                        if (!row.contains(condition.column)) {
+                            throw runtime_error("Column '" + condition.column + "' not found in row");
+                        }
+
+                        // Evaluate the condition directly using the JSON value
+                        return ConditionParser::evaluateCondition(row[condition.column], condition);
+                    } catch (const exception &e) {
+                        cerr << "Error evaluating condition: " << e.what() << endl;
+                        return false;
+                    }
+                };
+            } catch (const exception &e) {
+                throw runtime_error("Invalid WHERE condition: " + string(e.what()));
+            }
         }
 
         // Execute the query
