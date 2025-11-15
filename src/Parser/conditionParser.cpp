@@ -27,8 +27,6 @@ Condition ConditionParser::parseCondition(const string &condition) {
     if (condition.empty()) {
         throw runtime_error("Empty condition");
     }
-    cout << condition << endl;
-
     // This regex matches: column operator value
     // Supports: =, ==, !=, >, <, >=, <=, LIKE
     // Value can be: 'string', "string", or number
@@ -162,15 +160,10 @@ bool ConditionParser::compareEqual(const string &fieldValue, const string &condi
         return fieldValue == "NULL" || fieldValue.empty();
     }
 
-    cout << "Comparing field value: '" << fieldValue << "' with condition value: '" << conditionValue << "'" << endl;
-
     string trimmedField = trim(fieldValue);
     string trimmedCondition = trim(conditionValue);
 
-    cout << "After trimming - field: '" << trimmedField << "', condition: '" << trimmedCondition << "'" << endl;
-
     bool result = (trimmedField == trimmedCondition);
-    cout << "Comparison result: " << (result ? "MATCH" : "NO MATCH") << endl;
 
     return result;
 }
