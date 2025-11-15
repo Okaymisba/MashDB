@@ -7,6 +7,7 @@
 #include "../Operations/CurrentDB/currentDB.h"
 #include "../Operations/Creation/createTable.h"
 #include "../Operations/Deletion/deleteRow.h"
+#include "../Operations/Update/updateRow.h"
 
 #include <regex>
 #include <iostream>
@@ -86,6 +87,12 @@ void ParseQuery::parse(const string &query) {
     // DELETE FROM table_name WHERE condition;
     regex deleteRegex(
         R"(^\s*DELETE\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_$]*)(?:\s+WHERE\s+(.+?))?\s*;\s*$)",
+        regex_constants::icase
+    );
+
+    // UPDATE table_name SET column1=value1, column2=value2 WHERE condition;
+    regex updateRegex(
+        R"(^\s*UPDATE\s+([a-zA-Z_][a-zA-Z0-9_$]*)\s+SET\s+([^;]+?)(?:\s+WHERE\s+(.+?))?\s*;\s*$)",
         regex_constants::icase
     );
 
@@ -365,9 +372,94 @@ void ParseQuery::parse(const string &query) {
     } else if (regex_match(query, match, createDbRegex)) {
         string dbName = match[1].str();
         CreateDatabase::createDatabase(dbName);
+    } else if (regex_match(query, match, updateRegex)) {
+        string tableName = match[1].str();
+        string setClause = match[2].str();
+        string whereClause = match[3].matched ? match[3].str() : "";
+
+        // Parse SET clause
+        unordered_map<string, json> updates;
+        stringstream ssSet(setClause);
+        string setItem;
+
+        while (getline(ssSet, setItem, ',')) {
+            // Trim whitespace
+            setItem.erase(0, setItem.find_first_not_of(" \t\n\r\f\v"));
+            setItem.erase(setItem.find_last_not_of(" \t\n\r\f\v") + 1);
+
+            size_t eqPos = setItem.find('=');
+            if (eqPos == string::npos) {
+                throw runtime_error("Invalid SET clause: " + setItem);
+            }
+
+            string column = setItem.substr(0, eqPos);
+            column.erase(0, column.find_first_not_of(" \t\n\r\f\v"));
+            column.erase(column.find_last_not_of(" \t\n\r\f\v") + 1);
+
+            string valueStr = setItem.substr(eqPos + 1);
+            valueStr.erase(0, valueStr.find_first_not_of(" \t\n\r\f\v"));
+            valueStr.erase(valueStr.find_last_not_of(" \t\n\r\f\v") + 1);
+
+            // Parse the value
+            json value;
+            if (valueStr == "NULL" || valueStr == "null") {
+                value = nullptr;
+            } else if (valueStr == "true" || valueStr == "TRUE") {
+                value = true;
+            } else if (valueStr == "false" || valueStr == "FALSE") {
+                value = false;
+            }
+            // Handle quoted strings
+            else if ((valueStr[0] == '\'' && valueStr.back() == '\'') ||
+                     (valueStr[0] == '"' && valueStr.back() == '"')) {
+                value = valueStr.substr(1, valueStr.length() - 2);
+            }
+            // Handle numbers
+            else if (regex_match(valueStr, regex("^-?\\d+$"))) {
+                value = stoi(valueStr);
+            } else if (regex_match(valueStr, regex(R"(^-?\d+\.\d+$)"))) {
+                value = stod(valueStr);
+            } else {
+                // Default to string if no other type matches
+                value = valueStr;
+            }
+
+            updates[column] = value;
+        }
+
+        // Normalize the WHERE clause if it exists
+        string normalizedWhere = whereClause;
+        if (!whereClause.empty()) {
+            // Replace == with = for consistency
+            size_t pos = 0;
+            while ((pos = normalizedWhere.find("==", pos)) != string::npos) {
+                normalizedWhere.replace(pos, 2, "=");
+                pos += 1;
+            }
+
+            // Normalize spaces around operators
+            regex ws_re("\\s*([=!<>]+)\\s*");
+            normalizedWhere = regex_replace(normalizedWhere, ws_re, " $1 ");
+
+            // Trim the result
+            normalizedWhere.erase(0, normalizedWhere.find_first_not_of(" \t\n\r\f\v"));
+            normalizedWhere.erase(normalizedWhere.find_last_not_of(" \t\n\r\f\v") + 1);
+        }
+
+        // Call the update function
+        int updated = UpdateOperation::updateTable(
+            tableName,
+            updates,
+            normalizedWhere
+        );
+
+        if (updated >= 0) {
+            cout << "Updated " << updated << " row" << (updated != 1 ? "s" : "") << " in table " << tableName << endl;
+        } else {
+            throw runtime_error("Failed to update rows in table " + tableName);
+        }
     } else if (regex_match(query, match, changeDbRegex)) {
         string dbName = match[1].str();
         ChangeDB::change(dbName);
-        throw runtime_error("Invalid query");
     }
 }
