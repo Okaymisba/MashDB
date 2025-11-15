@@ -16,11 +16,20 @@ static string currentDatabase = CurrentDB::getCurrentDB();
 
 namespace UpdateOperation {
     /**
-     * @brief Updates rows in a table that match the given condition
-     * @param tableName Name of the table to update
-     * @param updates Map of column names to their new values
-     * @param conditionStr Optional condition string to filter which rows to update
-     * @return int Number of rows updated, or -1 on error
+     * @brief Updates rows in a table based on a given condition.
+     *
+     * If a condition string is provided, this function will update all rows in the table
+     * that satisfy the condition. If no condition string is provided, all rows in the table
+     * will be updated.
+     *
+     * @param tableName The name of the table to be updated.
+     * @param updates A map of column names to the values to be written to those columns.
+     * @param conditionStr An optional condition string to filter which rows are updated.
+     * @return The number of rows updated.
+     * @throws std::runtime_error If the table does not exist, if the column specified in the condition
+     * does not exist, if the format of the target column or table information is invalid, if
+     * opening or writing files associated with the table fails, or if errors occur during condition
+     * evaluation or deletion processing.
      */
     int updateTable(
         const string &tableName,
