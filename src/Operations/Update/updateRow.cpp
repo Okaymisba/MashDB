@@ -42,7 +42,6 @@ namespace UpdateOperation {
             throw runtime_error("Table does not exist: " + tableName);
         }
 
-        // Parse condition if provided
         Condition condition;
         if (!conditionStr.empty()) {
             try {
@@ -52,7 +51,6 @@ namespace UpdateOperation {
             }
         }
 
-        // Read table info
         json tableInfo;
         {
             ifstream tfile(tableInfoFile);
@@ -60,18 +58,15 @@ namespace UpdateOperation {
             tfile >> tableInfo;
         }
 
-        // Validate updates against table schema
         for (const auto &[colName, _]: updates) {
             if (!tableInfo.contains(colName)) {
                 throw runtime_error("Column not found in table: " + colName);
             }
         }
 
-        // First, determine which rows match the condition by checking the condition column
         vector<bool> rowsToUpdate;
         size_t totalRows = 0;
 
-        // Find the condition column data if there's a condition
         if (!conditionStr.empty()) {
             fs::path condColPath = tableDir / (condition.column + ".json");
             if (!fs::exists(condColPath)) {
@@ -93,7 +88,6 @@ namespace UpdateOperation {
             totalRows = condValues.size();
             rowsToUpdate.resize(totalRows, false);
 
-            // Mark which rows should be updated based on the condition
             for (size_t i = 0; i < totalRows; ++i) {
                 try {
                     rowsToUpdate[i] = ConditionParser::evaluateCondition(condValues[i], condition);
@@ -107,8 +101,6 @@ namespace UpdateOperation {
                 }
             }
         } else {
-            // If no condition, update all rows
-            // Get the row count from the first column
             fs::path firstColPath = tableDir / (tableInfo.begin().key() + ".json");
             if (fs::exists(firstColPath)) {
                 json firstColData;
@@ -125,14 +117,12 @@ namespace UpdateOperation {
             }
         }
 
-        // Now process each column that needs to be updated
         for (const auto &colName: updates) {
             fs::path colPath = tableDir / (colName.first + ".json");
             if (!fs::exists(colPath)) {
                 throw runtime_error("Column not found: " + colName.first);
             }
 
-            // Read column data
             json colData;
             {
                 ifstream cfile(colPath);
@@ -147,10 +137,8 @@ namespace UpdateOperation {
             auto &values = colData[colName.first];
             bool isUpdated = false;
 
-            // Update the values for rows that match the condition
             for (size_t i = 0; i < values.size() && i < rowsToUpdate.size(); ++i) {
                 if (rowsToUpdate[i]) {
-                    // Only update if the value is different
                     if (values[i] != colName.second) {
                         values[i] = colName.second;
                         isUpdated = true;
@@ -158,7 +146,6 @@ namespace UpdateOperation {
                 }
             }
 
-            // If column was updated, stage it for writing
             if (isUpdated) {
                 fs::path tempPath = colPath.string() + ".tmp";
                 {
@@ -170,7 +157,6 @@ namespace UpdateOperation {
             }
         }
 
-        // Apply all updates if no errors occurred
         if (!staged.empty()) {
             try {
                 for (const auto &[tempPath, finalPath]: staged) {
@@ -178,7 +164,6 @@ namespace UpdateOperation {
                 }
                 return updatedCount;
             } catch (const exception &e) {
-                // Clean up any temporary files on error
                 for (const auto &[tempPath, _]: staged) {
                     if (fs::exists(tempPath)) {
                         fs::remove(tempPath);
@@ -190,4 +175,4 @@ namespace UpdateOperation {
 
         return updatedCount;
     }
-} // namespace UpdateOperation
+}
