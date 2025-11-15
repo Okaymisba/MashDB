@@ -18,4 +18,5 @@ add_executable(MashDB
         src/Operations/Selection/ResultFormatter.cpp
         src/Operations/Deletion/deleteRow.cpp
         src/Parser/conditionParser.cpp
+        src/Operations/Update/updateRow.cpp
 )
