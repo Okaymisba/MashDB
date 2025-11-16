@@ -4,7 +4,7 @@
 
 using namespace std;
 
-int main() {
+void runInteractive() {
     cout << "MashDB Interactive Console\n";
     cout << "Type your SQL-like commands (type 'exit;' to quit)\n\n";
 
@@ -30,6 +30,25 @@ int main() {
         } catch (const exception &e) {
             cerr << "Error: " << e.what() << endl;
         }
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc > 1) {
+        string query;
+        for (int i = 1; i < argc; ++i) {
+            if (i > 1) query += " ";
+            query += argv[i];
+        }
+
+        try {
+            ParseQuery::parse(query);
+        } catch (const exception &e) {
+            cerr << "Error: " << e.what() << endl;
+            return 1;
+        }
+    } else {
+        runInteractive();
     }
 
     return 0;
