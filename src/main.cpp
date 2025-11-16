@@ -20,7 +20,7 @@ void runInteractive() {
         if (query.empty())
             continue;
 
-        if (query == "exit;" || query == "EXIT;") {
+        if (query == "exit" || query == "EXIT") {
             cout << "Exiting MashDB console.\n";
             break;
         }
