@@ -20,6 +20,14 @@ namespace Selection {
          */
         static std::string formatAsTable(const json &result, const std::vector<std::string> &columns = {});
 
+        /**
+         * @brief Returns the query results as a JSON string
+         * @param result JSON array of result rows
+         * @param columns List of columns to include (if empty, all columns are included)
+         * @return std::string JSON string containing the results
+         */
+        static std::string formatAsJson(const json &result, const std::vector<std::string> &columns = {});
+
     private:
         /**
          * @brief Calculates the maximum width needed for each column
@@ -55,10 +63,8 @@ namespace Selection {
             } else if (value.is_number_float()) {
                 std::ostringstream oss;
                 double val = value.template get<double>();
-                // Format to 2 decimal places for floating point numbers
                 oss << std::fixed << std::setprecision(2) << val;
                 std::string str = oss.str();
-                // Remove trailing zeros and possibly the decimal point
                 str.erase(str.find_last_not_of('0') + 1, std::string::npos);
                 if (str.back() == '.') {
                     str.pop_back();
