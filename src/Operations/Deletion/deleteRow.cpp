@@ -57,7 +57,9 @@ void DeleteRow::deleteRow(const string &tableName, const string &conditionStr) {
     } catch (const std::exception &e) {
         throw std::runtime_error("Invalid condition: " + std::string(e.what()));
     }
-    fs::path basePath = fs::current_path() / "Databases" / currentDatabase / tableName;
+    fs::path homeDir = getenv("HOME");
+    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+    fs::path basePath = homeDir / ".mashdb" / "databases" / currentDatabase / tableName;
     fs::path tableDir = basePath / "Columns";
     fs::path tableInfoFile = basePath / "Table-info.json";
 

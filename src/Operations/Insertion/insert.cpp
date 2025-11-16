@@ -40,8 +40,13 @@ void InsertIntoTable::insert(
     const vector<string> &columns,
     const vector<json> &values
 ) {
-    string basePath = fs::current_path().string() + "/Databases/" + databaseName + "/" + tableName;
-    string infoFilePath = basePath + "/Table-info.json";
+    fs::path homeDir = getenv("HOME");
+    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+    fs::path basePath = homeDir / ".mashdb" / "databases" / databaseName / tableName;
+    fs::path infoFilePath = basePath / "Table-info.json";
+
+    string basePathStr = basePath.string();
+    string infoFilePathStr = infoFilePath.string();
 
     if (!fs::exists(basePath)) {
         throw runtime_error("Table doesn't exist");
@@ -76,7 +81,7 @@ void InsertIntoTable::insert(
 
     try {
         for (const auto &column: columnsOfTable) {
-            string finalPath = basePath + "/Columns/" + column + ".json";
+            fs::path finalPath = basePath / "Columns" / (column + ".json");
             if (!fs::exists(finalPath))
                 throw runtime_error("Missing column file: " + column);
 
@@ -157,7 +162,7 @@ void InsertIntoTable::insert(
                 dataArray.push_back(typedVal);
             }
 
-            string tempPath = finalPath + ".tmp";
+            string tempPath = finalPath / ".tmp";
             {
                 ofstream outFile(tempPath, ios::trunc);
                 outFile << colJson.dump(4);

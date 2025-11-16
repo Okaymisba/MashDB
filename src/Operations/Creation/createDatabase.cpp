@@ -10,22 +10,22 @@ using json = nlohmann::json;
 
 static string currentDatabase;
 
+
 /**
- * @brief Creates a new database directory and updates the current database file.
+ * Creates a new database with the specified name.
  *
- * This function creates a new database directory in the file system at a
- * predefined path. If the database with the specified name already exists,
- * an exception is thrown. If not, it creates the necessary directory structure
- * and updates a separate file storing the name of the current database in use.
+ * This function creates a new directory with the specified name under the ".mashdb/databases"
+ * directory. If the directory already exists, a std::runtime_error is thrown.
  *
  * @param databaseName The name of the database to be created.
- *
- * @throws std::runtime_error If the database already exists or if there is
- * a failure in creating directories or files.
+ * @throws std::runtime_error If the database already exists, or if the current database file
+ * cannot be created.
  */
 void CreateDatabase::createDatabase(const string &databaseName) {
-    fs::path basePath = fs::current_path() / "Databases" / databaseName;
-    fs::path currentDbFile = fs::current_path() / "crrtdb" / "crrtdb.txt";
+    fs::path homeDir = getenv("HOME");
+    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+    fs::path basePath = homeDir / ".mashdb" / "databases" / databaseName;
+    fs::path currentDbFile = homeDir / ".mashdb" / "crrtdb.txt";
 
     if (!fs::exists(basePath)) {
         fs::create_directories(basePath);

@@ -29,8 +29,11 @@ void CreateTable::createTable(const std::string &tableName,
     if (columns.size() != dataTypes.size())
         throw runtime_error("Must initialize Data Type for every Column.");
 
-    fs::path tableDir = fs::current_path() / "Databases" / currentDatabase / tableName / "Columns";
-    fs::path tableInfoFile = fs::current_path() / "Databases" / currentDatabase / tableName / "Table-info.json";
+    fs::path homeDir = getenv("HOME");
+    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+    fs::path basePath = homeDir / ".mashdb" / "databases" / currentDatabase / tableName;
+    fs::path tableDir = basePath / "Columns";
+    fs::path tableInfoFile = basePath / "Table-info.json";
 
     if (!fs::exists(tableDir))
         fs::create_directories(tableDir);

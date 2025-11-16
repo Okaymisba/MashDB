@@ -195,9 +195,10 @@ void ParseQuery::parse(const string &query) {
             try {
                 Condition condition = ConditionParser::parseCondition(whereConditionStr);
 
-                string basePath = fs::current_path().string() + "/Databases/" + CurrentDB::getCurrentDB() + "/" +
-                                  tableName;
-                fs::path tableInfoFile = basePath + "/Table-info.json";
+                fs::path homeDir = getenv("HOME");
+                if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+                fs::path basePath = homeDir / ".mashdb" / "databases" / CurrentDB::getCurrentDB() / tableName;
+                fs::path tableInfoFile = basePath / "Table-info.json";
 
                 if (!fs::exists(tableInfoFile)) {
                     throw runtime_error("Table info not found");

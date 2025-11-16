@@ -18,11 +18,13 @@ namespace fs = filesystem;
  * @throws std::runtime_error If the file cannot be opened, or if the file's content is empty.
  */
 string CurrentDB::getCurrentDB() {
-    string path = fs::current_path().string() + "/crrtdb/crrtdb.txt";
+    fs::path homeDir = getenv("HOME");
+    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+    fs::path path = homeDir / ".mashdb" / "crrtdb.txt";
 
     ifstream file(path);
     if (!file.is_open()) {
-        throw runtime_error("Cannot open current database file: " + path);
+        throw runtime_error("Cannot open current database file: " + path.string());
     }
 
     string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());

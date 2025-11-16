@@ -57,8 +57,13 @@ namespace Selection {
         optional<size_t> limit,
         size_t offset
     ) {
-        string basePath = fs::current_path().string() + "/Databases/" + databaseName + "/" + tableName;
-        string infoFilePath = basePath + "/Table-info.json";
+        fs::path homeDir = getenv("HOME");
+        if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+        fs::path basePath = homeDir / ".mashdb" / "databases" / databaseName / tableName;
+        fs::path infoFilePath = basePath / "Table-info.json";
+
+        string basePathStr = basePath.string();
+        string infoFilePathStr = infoFilePath.string();
 
         if (!fs::exists(basePath) || !fs::exists(infoFilePath)) {
             throw runtime_error("Table doesn't exist");
@@ -75,8 +80,8 @@ namespace Selection {
 
         map<string, json> allColumnData;
         for (const auto &col: allColumns) {
-            string colPath = basePath + "/Columns/" + col + ".json";
-            allColumnData[col] = loadColumn(colPath)[col];
+            fs::path colPath = basePath / "Columns" / (col + ".json");
+            allColumnData[col] = loadColumn(colPath.string())[col];
         }
 
         map<string, json> columnData;
@@ -85,8 +90,8 @@ namespace Selection {
         }
 
         if (!orderByColumn.empty() && allColumnData.find(orderByColumn) == allColumnData.end()) {
-            string orderColPath = basePath + "/Columns/" + orderByColumn + ".json";
-            allColumnData[orderByColumn] = loadColumn(orderColPath)[orderByColumn];
+            fs::path orderColPath = basePath / "Columns" / (orderByColumn + ".json");
+            allColumnData[orderByColumn] = loadColumn(orderColPath.string())[orderByColumn];
         }
 
         size_t rowCount = 0;

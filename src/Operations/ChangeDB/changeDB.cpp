@@ -13,8 +13,10 @@ namespace fs = filesystem;
  * @throws std::runtime_error If the specified database does not exist or if the reference file cannot be written.
  */
 void ChangeDB::change(const string &databaseName) {
-    string dbPath = fs::current_path().string() + "/Databases/" + databaseName;
-    string currentDbFile = fs::current_path().string() + "/crrtdb/crrtdb.txt";
+    fs::path homeDir = getenv("HOME");
+    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+    fs::path dbPath = homeDir / ".mashdb" / "databases" / databaseName;
+    fs::path currentDbFile = homeDir / ".mashdb" / "crrtdb.txt";
 
     if (!fs::exists(dbPath)) {
         throw runtime_error("No database with the name '" + databaseName + "' found");

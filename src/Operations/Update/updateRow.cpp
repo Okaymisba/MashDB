@@ -40,7 +40,9 @@ namespace UpdateOperation {
             throw runtime_error("No database selected. Use 'USE DATABASE' first.");
         }
 
-        fs::path basePath = fs::current_path() / "Databases" / currentDatabase / tableName;
+        fs::path homeDir = getenv("HOME");
+        if (homeDir.empty()) homeDir = getenv("USERPROFILE");
+        fs::path basePath = homeDir / ".mashdb" / "databases" / currentDatabase / tableName;
         fs::path tableDir = basePath / "Columns";
         fs::path tableInfoFile = basePath / "Table-info.json";
 
