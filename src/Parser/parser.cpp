@@ -1,6 +1,8 @@
 #include "parser.h"
-
 #include <fstream>
+
+// Forward declaration of the global output format flag
+extern bool g_outputJson;
 
 #include "../Operations/Creation/createDatabase.h"
 #include "../Operations/ChangeDB/changeDB.h"
@@ -256,7 +258,11 @@ void ParseQuery::parse(const string &query) {
         if (columnsStr != "*") {
             selectedCols = columns;
         }
-        cout << Selection::ResultFormatter::formatAsTable(result, selectedCols);
+        if (g_outputJson) {
+            cout << Selection::ResultFormatter::formatAsJson(result, selectedCols);
+        } else {
+            cout << Selection::ResultFormatter::formatAsTable(result, selectedCols);
+        }
     } else if (regex_match(query, match, deleteRegex)) {
         string tableName = match[1].str();
         string condition = match[2].matched ? match[2].str() : "";

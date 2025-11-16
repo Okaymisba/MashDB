@@ -18,24 +18,44 @@ namespace fs = filesystem;
  * @throws std::runtime_error If the file cannot be opened, or if the file's content is empty.
  */
 string CurrentDB::getCurrentDB() {
-    fs::path homeDir = getenv("HOME");
-    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
-    fs::path path = homeDir / ".mashdb" / "crrtdb.txt";
+    try {
+        fs::path homeDir = getenv("HOME");
+        if (homeDir.empty()) homeDir = getenv("USERPROFILE");
 
-    ifstream file(path);
-    if (!file.is_open()) {
-        throw runtime_error("Cannot open current database file: " + path.string());
+        fs::path mashdbDir = homeDir / ".mashdb";
+        fs::path path = mashdbDir / "crrtdb.txt";
+
+        if (!fs::exists(path) || fs::is_empty(path)) {
+            if (!fs::exists(mashdbDir)) {
+                if (!fs::create_directories(mashdbDir)) {
+                    throw runtime_error("Failed to create directory: " + mashdbDir.string());
+                }
+            }
+
+            ofstream file(path);
+            if (!file) {
+                throw runtime_error("Failed to create current database file: " + path.string());
+            }
+            file.close();
+
+            return "";
+        }
+
+        ifstream file(path);
+        if (!file.is_open()) {
+            throw runtime_error("Cannot open current database file: " + path.string());
+        }
+
+        string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
+        file.close();
+
+        content.erase(remove(content.begin(), content.end(), '\n'), content.end());
+        content.erase(remove(content.begin(), content.end(), '\r'), content.end());
+
+        return content;
+    } catch (const fs::filesystem_error &e) {
+        throw runtime_error("Filesystem error: " + string(e.what()));
+    } catch (const exception &e) {
+        throw runtime_error("Error getting current database: " + string(e.what()));
     }
-
-    string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-    file.close();
-
-    if (content.empty()) {
-        throw runtime_error("No database found");
-    }
-
-    content.erase(remove(content.begin(), content.end(), '\n'), content.end());
-    content.erase(remove(content.begin(), content.end(), '\r'), content.end());
-
-    return content;
 }

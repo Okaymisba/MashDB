@@ -43,6 +43,15 @@ void InsertIntoTable::insert(
     fs::path homeDir = getenv("HOME");
     if (homeDir.empty()) homeDir = getenv("USERPROFILE");
     fs::path basePath = homeDir / ".mashdb" / "databases" / databaseName / tableName;
+
+    if (!fs::exists(basePath)) {
+        fs::create_directories(basePath);
+    }
+
+    fs::path columnsDir = basePath / "Columns";
+    if (!fs::exists(columnsDir)) {
+        fs::create_directories(columnsDir);
+    }
     fs::path infoFilePath = basePath / "Table-info.json";
 
     string basePathStr = basePath.string();
@@ -162,19 +171,23 @@ void InsertIntoTable::insert(
                 dataArray.push_back(typedVal);
             }
 
-            string tempPath = finalPath / ".tmp";
+            fs::path tempPath = finalPath;
+            tempPath += ".tmp";
             {
                 ofstream outFile(tempPath, ios::trunc);
                 outFile << colJson.dump(4);
                 outFile.close();
             }
 
-            staged.emplace_back(tempPath, finalPath);
+            staged.emplace_back(tempPath.string(), finalPath.string());
         }
 
         for (const auto &p: staged) {
             const string &tempPath = p.first;
             const string &finalPath = p.second;
+            if (fs::exists(finalPath)) {
+                fs::remove(finalPath);
+            }
             fs::rename(tempPath, finalPath);
         }
     } catch (const exception &e) {

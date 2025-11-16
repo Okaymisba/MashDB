@@ -26,7 +26,7 @@ void ChangeDB::change(const string &databaseName) {
 
     ofstream file(currentDbFile, ios::trunc);
     if (!file.is_open()) {
-        throw runtime_error("Failed to open file for writing: " + currentDbFile);
+        throw runtime_error("Failed to open file for writing: " + currentDbFile.string());
     }
 
     file << databaseName;

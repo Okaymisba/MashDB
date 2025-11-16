@@ -22,24 +22,46 @@ static string currentDatabase;
  * cannot be created.
  */
 void CreateDatabase::createDatabase(const string &databaseName) {
-    fs::path homeDir = getenv("HOME");
-    if (homeDir.empty()) homeDir = getenv("USERPROFILE");
-    fs::path basePath = homeDir / ".mashdb" / "databases" / databaseName;
-    fs::path currentDbFile = homeDir / ".mashdb" / "crrtdb.txt";
+    try {
+        fs::path homeDir = getenv("HOME");
+        if (homeDir.empty()) homeDir = getenv("USERPROFILE");
 
-    if (!fs::exists(basePath)) {
-        fs::create_directories(basePath);
+        fs::path mashdbDir = homeDir / ".mashdb";
+        fs::path databasesDir = mashdbDir / "databases";
+        fs::path basePath = databasesDir / databaseName;
+        fs::path currentDbFile = mashdbDir / "crrtdb.txt";
+
+        if (fs::exists(basePath)) {
+            throw runtime_error("Database '" + databaseName + "' already exists.");
+        }
+
+        if (!fs::exists(mashdbDir)) {
+            if (!fs::create_directories(mashdbDir)) {
+                throw runtime_error("Failed to create directory: " + mashdbDir.string());
+            }
+        }
+
+        if (!fs::exists(databasesDir)) {
+            if (!fs::create_directories(databasesDir)) {
+                throw runtime_error("Failed to create directory: " + databasesDir.string());
+            }
+        }
+
+        if (!fs::create_directories(basePath)) {
+            throw runtime_error("Failed to create database directory: " + basePath.string());
+        }
+
         currentDatabase = databaseName;
 
-        if (!fs::exists(currentDbFile.parent_path()))
-            fs::create_directories(currentDbFile.parent_path());
-
-        ofstream file(currentDbFile);
-        if (!file)
-            throw runtime_error("Failed to create current database file.");
+        ofstream file(currentDbFile, ios::trunc);
+        if (!file.is_open()) {
+            throw runtime_error("Failed to create/update current database file: " + currentDbFile.string());
+        }
         file << currentDatabase;
         file.close();
-    } else {
-        throw runtime_error("Database already exists.");
+    } catch (const fs::filesystem_error &e) {
+        throw runtime_error("Filesystem error: " + string(e.what()));
+    } catch (const exception &e) {
+        throw runtime_error("Error creating database: " + string(e.what()));
     }
 }
