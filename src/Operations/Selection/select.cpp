@@ -69,7 +69,7 @@ namespace Selection {
             throw runtime_error("Table doesn't exist");
         }
 
-        auto allColumns = getTableColumns(infoFilePath);
+        auto allColumns = getTableColumns(infoFilePath.string());
         vector<string> selectedColumns = columns.empty() ? allColumns : columns;
 
         for (const auto &col: selectedColumns) {
